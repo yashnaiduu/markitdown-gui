@@ -7,6 +7,8 @@
 > [!IMPORTANT]
 > MarkItDown Studio performs I/O with the privileges of the current process. It is a desktop application providing a rich user interface for document conversion and querying. Ensure you trust the documents you process and the models you interact with.
 
+> **Note:** This is an independent, community-driven project built by an individual developer. It is **not** affiliated with or officially endorsed by Microsoft. It acts as a desktop GUI built on top of Microsoft's fantastic [MarkItDown](https://github.com/microsoft/markitdown) utility.
+
 MarkItDown Studio is a powerful, modern GUI built around the concept of converting various file formats to Markdown for use with LLMs and knowledge bases. It provides an intuitive desktop experience for document processing, chatting with local models via Ollama, and maintaining an intelligent knowledge base.
 
 It supports all the formats that standard markdown converters do, wrapped in a beautiful, native-feeling macOS interface with both Python and Swift components.
