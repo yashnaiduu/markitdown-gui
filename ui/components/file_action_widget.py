@@ -6,6 +6,14 @@ from PySide6.QtCore import Qt, QUrl
 from PySide6.QtGui import QDesktopServices
 from ui.theme import AppleColors
 from ui.icons import get_icon
+from ui.components.preview_dialog import PreviewDialog
+import os
+from pathlib import Path
+from PySide6.QtWidgets import QWidget, QHBoxLayout, QLabel, QPushButton, QMessageBox
+from PySide6.QtCore import Qt, QUrl
+from PySide6.QtGui import QDesktopServices
+from ui.theme import AppleColors
+from ui.icons import get_icon
 
 class FileActionWidget(QWidget):
     """Custom widget for list items showing file conversion result and actions."""
@@ -32,6 +40,12 @@ class FileActionWidget(QWidget):
         
         # Actions (only if success and path provided)
         if success and file_path and file_path.exists():
+            self.btn_preview = QPushButton("Preview")
+            self.btn_preview.setCursor(Qt.CursorShape.PointingHandCursor)
+            self.btn_preview.setStyleSheet(self._button_style())
+            self.btn_preview.clicked.connect(self._preview_file)
+            layout.addWidget(self.btn_preview)
+
             self.btn_reveal = QPushButton("Reveal")
             self.btn_reveal.setCursor(Qt.CursorShape.PointingHandCursor)
             self.btn_reveal.setStyleSheet(self._button_style())
@@ -58,6 +72,17 @@ class FileActionWidget(QWidget):
                 background-color: {AppleColors.BUTTON_BG_HOVER};
             }}
         """
+
+    def _preview_file(self):
+        if self.file_path:
+            if self.file_path.exists():
+                try:
+                    dialog = PreviewDialog(self.file_path, self)
+                    dialog.exec()
+                except Exception as e:
+                    QMessageBox.critical(self, "Preview Failed", str(e))
+            else:
+                QMessageBox.critical(self, "File Missing", "The file no longer exists on disk.")
 
     def _reveal_file(self):
         if self.file_path:

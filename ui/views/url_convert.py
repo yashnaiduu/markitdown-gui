@@ -1,15 +1,56 @@
 """URL & YouTube conversion view — Apple-style input card."""
 
+from urllib.parse import urlparse
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QLineEdit, QPushButton, QListWidget, QFrame, QListWidgetItem
+    QLineEdit, QPushButton, QListWidget, QFrame, QListWidgetItem, QMessageBox
 )
-from PySide6.QtCore import Qt, QThreadPool
+from PySide6.QtCore import Qt, QThreadPool, Signal
 from ui.theme import AppleColors, AppleTypography
 from ui.icons import get_icon
 from workers.convert_worker import ConvertWorker
 from ui.components.file_action_widget import FileActionWidget
 
+class UrlDropArea(QFrame):
+    """Drop area for dragging links directly from browser."""
+    urlDropped = Signal(str)
+
+    def __init__(self):
+        super().__init__()
+        self.setAcceptDrops(True)
+        self.setStyleSheet(f"""
+            QFrame {{
+                background-color: {AppleColors.CARD_BG};
+                border: 1px solid {AppleColors.SEPARATOR_SUBTLE};
+                border-radius: 10px;
+            }}
+        """)
+        self.idle_style = self.styleSheet()
+
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls() or event.mimeData().hasText():
+            event.acceptProposedAction()
+            self.setStyleSheet(f"""
+                QFrame {{
+                    background-color: {AppleColors.DROP_BG_ACTIVE};
+                    border: 2px dashed {AppleColors.DROP_BORDER_ACTIVE};
+                    border-radius: 10px;
+                }}
+            """)
+
+    def dragLeaveEvent(self, event):
+        self.setStyleSheet(self.idle_style)
+
+    def dropEvent(self, event):
+        self.setStyleSheet(self.idle_style)
+        text = ""
+        if event.mimeData().hasUrls():
+            text = event.mimeData().urls()[0].toString()
+        elif event.mimeData().hasText():
+            text = event.mimeData().text()
+        
+        if text:
+            self.urlDropped.emit(text)
 
 class UrlConvertView(QWidget):
     def __init__(self):
@@ -32,14 +73,8 @@ class UrlConvertView(QWidget):
         layout.addSpacing(16)
         
         # ── Input Card ─────────────────────────────────────────
-        input_card = QFrame()
-        input_card.setStyleSheet(f"""
-            QFrame {{
-                background-color: {AppleColors.CARD_BG};
-                border: 1px solid {AppleColors.SEPARATOR_SUBTLE};
-                border-radius: 10px;
-            }}
-        """)
+        input_card = UrlDropArea()
+        input_card.urlDropped.connect(self.on_url_dropped)
         card_layout = QVBoxLayout(input_card)
         card_layout.setContentsMargins(16, 14, 16, 14)
         card_layout.setSpacing(10)
@@ -97,9 +132,24 @@ class UrlConvertView(QWidget):
         """)
         layout.addWidget(self.result_list)
         
+    def on_url_dropped(self, url: str):
+        self.input_url.setText(url)
+        self.start_conversion()
+
+    def validate_url(self, url: str) -> bool:
+        try:
+            result = urlparse(url)
+            return all([result.scheme, result.netloc])
+        except ValueError:
+            return False
+
     def start_conversion(self):
         url = self.input_url.text().strip()
         if not url:
+            return
+            
+        if not self.validate_url(url):
+            QMessageBox.warning(self, "Invalid URL", "Please enter a valid URL starting with http:// or https://")
             return
             
         source_type = "youtube" if ("youtube.com" in url or "youtu.be" in url) else "url"
