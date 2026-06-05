@@ -10,7 +10,7 @@ from PySide6.QtWidgets import (
     QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
     QStackedWidget, QLabel, QFrame,
     QApplication, QComboBox, QCheckBox, QProgressBar, QPushButton,
-    QFileDialog, QToolBar, QToolButton
+    QFileDialog, QToolBar, QToolButton, QMenuBar
 )
 from PySide6.QtCore import Qt, QSize, QThreadPool, QPropertyAnimation, QRect, QEasingCurve
 from PySide6.QtGui import QScreen, QGuiApplication, QAction, QKeySequence
@@ -495,55 +495,96 @@ class MainWindow(QMainWindow):
 
     def _setup_menus(self):
         """Set up the standard macOS menu bar and global shortcuts."""
-        menubar = self.menuBar()
+        # A parentless QMenuBar on macOS acts as the global system menu bar
+        self._global_menubar = QMenuBar()
+        menubar = self._global_menubar
+        
+        # ── Application Menu (MarkItDown Studio) ────────────────
+        # Qt automatically builds the App menu from actions with specific roles
+        app_menu = menubar.addMenu("MarkItDown Studio")
+        
+        about_action = QAction("About MarkItDown Studio", self)
+        about_action.setMenuRole(QAction.MenuRole.AboutRole)
+        app_menu.addAction(about_action)
+        
+        prefs_action = QAction("Preferences...", self)
+        prefs_action.setShortcut(QKeySequence("Ctrl+,")) # Cmd+,
+        prefs_action.setMenuRole(QAction.MenuRole.PreferencesRole)
+        app_menu.addAction(prefs_action)
+        
+        hide_action = QAction("Hide MarkItDown Studio", self)
+        hide_action.setShortcut(QKeySequence("Ctrl+H")) # Cmd+H
+        hide_action.triggered.connect(self.hide)
+        app_menu.addAction(hide_action)
+        
+        quit_action = QAction("Quit MarkItDown Studio", self)
+        quit_action.setShortcut(QKeySequence("Ctrl+Q")) # Cmd+Q
+        quit_action.setMenuRole(QAction.MenuRole.QuitRole)
+        quit_action.triggered.connect(QApplication.quit)
+        app_menu.addAction(quit_action)
         
         # ── File Menu ───────────────────────────────────────────
         file_menu = menubar.addMenu("File")
         
+        new_action = QAction("New Session", self)
+        new_action.setShortcut(QKeySequence("Ctrl+N"))
+        new_action.triggered.connect(lambda: self.content_area.setCurrentIndex(0))
+        file_menu.addAction(new_action)
+        
+        open_action = QAction("Open File...", self)
+        open_action.setShortcut(QKeySequence("Ctrl+O"))
+        file_menu.addAction(open_action)
+        
+        file_menu.addSeparator()
+        
         close_action = QAction("Close Window", self)
-        close_action.setShortcut(QKeySequence.StandardKey.Close)  # Cmd+W
+        close_action.setShortcut(QKeySequence("Ctrl+W")) # Cmd+W
         close_action.triggered.connect(self.close)
         file_menu.addAction(close_action)
-        
-        quit_action = QAction("Quit", self)
-        quit_action.setShortcut(QKeySequence.StandardKey.Quit)    # Cmd+Q
-        quit_action.setMenuRole(QAction.MenuRole.QuitRole)
-        quit_action.triggered.connect(QApplication.quit)
-        file_menu.addAction(quit_action)
         
         # ── Edit Menu ───────────────────────────────────────────
         edit_menu = menubar.addMenu("Edit")
         
         undo_action = QAction("Undo", self)
-        undo_action.setShortcut(QKeySequence.StandardKey.Undo)
+        undo_action.setShortcut(QKeySequence("Ctrl+Z"))
         edit_menu.addAction(undo_action)
         
         redo_action = QAction("Redo", self)
-        redo_action.setShortcut(QKeySequence.StandardKey.Redo)
+        redo_action.setShortcut(QKeySequence("Ctrl+Shift+Z"))
         edit_menu.addAction(redo_action)
         
         edit_menu.addSeparator()
         
         cut_action = QAction("Cut", self)
-        cut_action.setShortcut(QKeySequence.StandardKey.Cut)
+        cut_action.setShortcut(QKeySequence("Ctrl+X"))
         edit_menu.addAction(cut_action)
         
         copy_action = QAction("Copy", self)
-        copy_action.setShortcut(QKeySequence.StandardKey.Copy)
+        copy_action.setShortcut(QKeySequence("Ctrl+C"))
         edit_menu.addAction(copy_action)
         
         paste_action = QAction("Paste", self)
-        paste_action.setShortcut(QKeySequence.StandardKey.Paste)
+        paste_action.setShortcut(QKeySequence("Ctrl+V"))
         edit_menu.addAction(paste_action)
         
         select_all_action = QAction("Select All", self)
-        select_all_action.setShortcut(QKeySequence.StandardKey.SelectAll)
+        select_all_action.setShortcut(QKeySequence("Ctrl+A"))
         edit_menu.addAction(select_all_action)
         
         # ── Window Menu ─────────────────────────────────────────
         window_menu = menubar.addMenu("Window")
         
         minimize_action = QAction("Minimize", self)
-        minimize_action.setShortcut(QKeySequence("Ctrl+M")) # Mac standard Cmd+M
+        minimize_action.setShortcut(QKeySequence("Ctrl+M")) # Cmd+M
         minimize_action.triggered.connect(self.showMinimized)
         window_menu.addAction(minimize_action)
+        
+        zoom_action = QAction("Zoom", self)
+        zoom_action.triggered.connect(self.showMaximized)
+        window_menu.addAction(zoom_action)
+        
+        window_menu.addSeparator()
+        
+        show_action = QAction("Show Main Window", self)
+        show_action.triggered.connect(lambda: (self.show(), self.raise_(), self.activateWindow()))
+        window_menu.addAction(show_action)
