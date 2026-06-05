@@ -1,7 +1,7 @@
 import subprocess
 import os
 from pathlib import Path
-from PySide6.QtWidgets import QWidget, QHBoxLayout, QLabel, QPushButton
+from PySide6.QtWidgets import QWidget, QHBoxLayout, QLabel, QPushButton, QMessageBox
 from PySide6.QtCore import Qt, QUrl
 from PySide6.QtGui import QDesktopServices
 from ui.theme import AppleColors
@@ -60,12 +60,24 @@ class FileActionWidget(QWidget):
         """
 
     def _reveal_file(self):
-        if self.file_path and self.file_path.exists():
-            if os.name == 'posix':
-                subprocess.run(['open', '-R', str(self.file_path)])
-            elif os.name == 'nt':
-                subprocess.run(['explorer', '/select,', str(self.file_path)])
+        if self.file_path:
+            if self.file_path.exists():
+                try:
+                    if os.name == 'posix':
+                        subprocess.run(['open', '-R', str(self.file_path)])
+                    elif os.name == 'nt':
+                        subprocess.run(['explorer', '/select,', str(self.file_path)])
+                except Exception as e:
+                    QMessageBox.critical(self, "Reveal Failed", str(e))
+            else:
+                QMessageBox.critical(self, "File Missing", "The file no longer exists on disk.")
                 
     def _open_file(self):
-        if self.file_path and self.file_path.exists():
-            QDesktopServices.openUrl(QUrl.fromLocalFile(str(self.file_path)))
+        if self.file_path:
+            if self.file_path.exists():
+                try:
+                    QDesktopServices.openUrl(QUrl.fromLocalFile(str(self.file_path)))
+                except Exception as e:
+                    QMessageBox.critical(self, "Open Failed", str(e))
+            else:
+                QMessageBox.critical(self, "File Missing", "The file no longer exists on disk.")

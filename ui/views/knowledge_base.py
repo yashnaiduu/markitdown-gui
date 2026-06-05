@@ -5,7 +5,10 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QListWidget, QPushButton, QMessageBox, QListWidgetItem
 )
-from PySide6.QtCore import Qt, QThreadPool
+from PySide6.QtCore import Qt, QThreadPool, QUrl
+from PySide6.QtGui import QDesktopServices
+import subprocess
+import os
 from ui.theme import AppleColors, AppleTypography
 from ui.icons import get_icon
 from storage.knowledge_base import KnowledgeBaseManager
@@ -62,6 +65,7 @@ class KnowledgeBaseView(QWidget):
                 color: white;
             }}
         """)
+        self.file_list.itemDoubleClicked.connect(self.open_item)
         layout.addWidget(self.file_list)
         
         # ── Action Bar ─────────────────────────────────────────
@@ -73,6 +77,16 @@ class KnowledgeBaseView(QWidget):
         self.btn_refresh.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_refresh.clicked.connect(self.refresh_list)
         controls.addWidget(self.btn_refresh)
+        
+        self.btn_open = QPushButton("Open")
+        self.btn_open.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_open.clicked.connect(self.open_selected)
+        controls.addWidget(self.btn_open)
+
+        self.btn_reveal = QPushButton("Reveal")
+        self.btn_reveal.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_reveal.clicked.connect(self.reveal_selected)
+        controls.addWidget(self.btn_reveal)
         
         self.btn_index = QPushButton("Index Selected")
         self.btn_index.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -130,6 +144,32 @@ class KnowledgeBaseView(QWidget):
             lambda err: QMessageBox.critical(self, "Error", f"Failed to index:\n{err.split(chr(10))[0]}")
         )
         self.threadpool.start(worker)
+
+    def open_item(self, item):
+        file_path = Path(item.data(Qt.ItemDataRole.UserRole))
+        if file_path.exists():
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(file_path)))
+        else:
+            QMessageBox.critical(self, "Error", f"File not found on disk:\n{file_path}")
+
+    def open_selected(self):
+        items = self.file_list.selectedItems()
+        if not items:
+            return
+        self.open_item(items[0])
+
+    def reveal_selected(self):
+        items = self.file_list.selectedItems()
+        if not items:
+            return
+        file_path = Path(items[0].data(Qt.ItemDataRole.UserRole))
+        if file_path.exists():
+            if os.name == 'posix':
+                subprocess.run(['open', '-R', str(file_path)])
+            elif os.name == 'nt':
+                subprocess.run(['explorer', '/select,', str(file_path)])
+        else:
+            QMessageBox.critical(self, "Error", f"File not found on disk:\n{file_path}")
         
     def delete_selected(self):
         items = self.file_list.selectedItems()

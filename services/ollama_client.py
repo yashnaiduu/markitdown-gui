@@ -91,10 +91,12 @@ class OllamaClient:
             return resp['response']
 
     def check_connection(self) -> bool:
-        """Checks if the local Ollama service is running and accessible."""
+        """Checks if the local Ollama service is running and accessible (fast fail)."""
+        import urllib.request
         try:
-            self.client.list()
-            return True
+            req = urllib.request.Request(f"{self.host}/api/tags", method="GET")
+            with urllib.request.urlopen(req, timeout=1.0) as response:
+                return response.status == 200
         except Exception:
             return False
 
