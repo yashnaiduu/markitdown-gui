@@ -5,12 +5,14 @@ Allows configuring Ollama and embedding models, chunk size, and checking connect
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QCheckBox, QFrame, QComboBox, QLineEdit, QMessageBox
+    QCheckBox, QFrame, QComboBox, QLineEdit, QMessageBox, QPushButton
 )
 from PySide6.QtCore import Qt, QTimer
 from ui.theme import AppleColors, AppleTypography
 from core.config import settings
 from services.ollama_client import OllamaClient
+from services.converter import ConverterService
+from workers.installer_worker import InstallerWorker
 
 
 class SettingsRow(QFrame):
@@ -197,6 +199,43 @@ class SettingsView(QWidget):
         ))
         layout.addWidget(rag_group)
         
+        layout.addSpacing(12)
+        
+        # ── Dependencies Group ────────────────────────────────
+        deps_group = SettingsGroup("Dependencies & Tools")
+        
+        self.converter = ConverterService()
+        
+        self.lbl_markitdown_status = QLabel()
+        self.lbl_markitdown_status.setStyleSheet(f"color: {AppleColors.TEXT_TERTIARY}; font-size: {AppleTypography.SIZE_BODY}px; background: transparent;")
+        
+        self.btn_install_markitdown = QPushButton("Install MarkItDown")
+        self.btn_install_markitdown.clicked.connect(self._install_markitdown)
+        
+        if self.converter.is_installed:
+            self.lbl_markitdown_status.setText("● Installed")
+            self.lbl_markitdown_status.setStyleSheet(f"color: {AppleColors.ACCENT_GREEN}; font-weight: bold; background: transparent;")
+            self.btn_install_markitdown.setText("Update MarkItDown")
+        else:
+            self.lbl_markitdown_status.setText("● Not Installed")
+            self.lbl_markitdown_status.setStyleSheet(f"color: {AppleColors.ACCENT_RED}; font-weight: bold; background: transparent;")
+            
+        deps_row = SettingsRow(
+            "MarkItDown Core",
+            self.lbl_markitdown_status,
+            "The core Microsoft utility required for document conversion."
+        )
+        deps_row.layout().addWidget(self.btn_install_markitdown)
+        deps_group.add_row(deps_row)
+        
+        self.lbl_install_progress = QLabel("")
+        self.lbl_install_progress.setStyleSheet(f"color: {AppleColors.TEXT_TERTIARY}; font-size: {AppleTypography.SIZE_FOOTNOTE}px; background: transparent;")
+        self.lbl_install_progress.setWordWrap(True)
+        self.lbl_install_progress.hide()
+        deps_group._layout.addWidget(self.lbl_install_progress)
+        
+        layout.addWidget(deps_group)
+        
         layout.addStretch()
         
         # Connection status updater timer
@@ -269,5 +308,29 @@ class SettingsView(QWidget):
             QMessageBox.warning(self, "Invalid Input", "Chunk overlap must be between 0 and Chunk Size.")
             self.txt_overlap.setText(str(settings.chunk_overlap))
             
+    def _install_markitdown(self):
+        self.btn_install_markitdown.setEnabled(False)
+        self.lbl_install_progress.setText("Starting installation...")
+        self.lbl_install_progress.show()
+        
+        self.worker = InstallerWorker()
+        self.worker.progress.connect(self._on_install_progress)
+        self.worker.finished.connect(self._on_install_finished)
+        self.worker.start()
+        
+    def _on_install_progress(self, msg: str):
+        self.lbl_install_progress.setText(msg)
+        
+    def _on_install_finished(self, success: bool, msg: str):
+        self.btn_install_markitdown.setEnabled(True)
+        self.lbl_install_progress.setText(msg)
+        if success:
+            QMessageBox.information(self, "Installation Complete", "MarkItDown was successfully installed.\\n\\nPlease restart the application to use it.")
+            self.lbl_markitdown_status.setText("● Installed")
+            self.lbl_markitdown_status.setStyleSheet(f"color: {AppleColors.ACCENT_GREEN}; font-weight: bold; background: transparent;")
+            self.btn_install_markitdown.setText("Update MarkItDown")
+        else:
+            QMessageBox.critical(self, "Installation Failed", msg)
+
     def refresh(self):
         self._update_connection_status()

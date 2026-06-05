@@ -1,6 +1,5 @@
 from pathlib import Path
 from typing import Optional
-from markitdown import MarkItDown
 from core.security.network_guard import network_guard
 from storage.knowledge_base import KnowledgeBaseManager
 
@@ -8,21 +7,37 @@ class ConverterService:
     """Service to handle document and URL conversions to Markdown."""
     
     def __init__(self):
+        self.md = None
+        self._is_installed = False
         try:
-            from openai import OpenAI
-            # Point OpenAI client to local Ollama instance
-            client = OpenAI(base_url="http://localhost:11434/v1", api_key="ollama")
-            self.md = MarkItDown(
-                enable_plugins=True,
-                llm_client=client,
-                llm_model="llava"  # Default Ollama vision model
-            )
-        except Exception as e:
-            print(f"Failed to initialize MarkItDown with LLM OCR: {e}")
-            self.md = MarkItDown()
+            from markitdown import MarkItDown
+            self._is_installed = True
+            try:
+                from openai import OpenAI
+                # Point OpenAI client to local Ollama instance
+                client = OpenAI(base_url="http://localhost:11434/v1", api_key="ollama")
+                self.md = MarkItDown(
+                    enable_plugins=True,
+                    llm_client=client,
+                    llm_model="llava"  # Default Ollama vision model
+                )
+            except Exception as e:
+                print(f"Failed to initialize MarkItDown with LLM OCR: {e}")
+                self.md = MarkItDown()
+        except ImportError:
+            print("MarkItDown is not installed.")
+
+    @property
+    def is_installed(self) -> bool:
+        return self._is_installed
+
+    def _check_installed(self):
+        if not self._is_installed:
+            raise RuntimeError("MarkItDown is not installed. Please install it from Settings.")
         
     def convert_local_file(self, file_path: str, dest_dir: Path = None) -> Optional[Path]:
         """Convert a local file to markdown and save it to the target directory."""
+        self._check_installed()
         path = Path(file_path)
         if not path.exists():
             raise FileNotFoundError(f"File not found: {file_path}")
@@ -48,6 +63,7 @@ class ConverterService:
         
     def convert_url(self, url: str) -> Optional[Path]:
         """Convert a web URL to markdown."""
+        self._check_installed()
         import urllib.parse
         parsed = urllib.parse.urlparse(url)
         
@@ -67,6 +83,7 @@ class ConverterService:
 
     def convert_youtube(self, url: str) -> Optional[Path]:
         """Convert a YouTube video transcript to markdown."""
+        self._check_installed()
         import urllib.parse
         parsed = urllib.parse.urlparse(url)
         
