@@ -64,6 +64,10 @@ You can build the native macOS experience using the provided build script:
 
 This will package the Python backend and the Swift frontend into a standalone `.app` bundle.
 
+## FAQ & Troubleshooting
+
+Have questions about privacy, supported formats, or setting up Ollama? Check out our [Frequently Asked Questions (FAQ)](FAQ.md) page!
+
 ## Architecture
 
 MarkItDown Studio uses a hybrid architecture:
